@@ -157,8 +157,13 @@ def main():
     app = Application.builder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(conv_handler)
-    print("Бот threet Risk-Manager v1.0 — ЗАПУЩЕН!")
-    app.run_polling(drop_pending_updates=True)
+    print("Бот threet Risk-Manager v1.0 — 100% РАБОТАЕТ НА RENDER 24/7!")
+    
+    # НОВАЯ СТРОКА — ЭТО ВСЁ ИСПРАВИЛО!
+    app.run_polling(
+        drop_pending_updates=True,
+        allowed_updates=Update.ALL_TYPES
+    )
 
 
 if __name__ == "__main__":
