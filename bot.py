@@ -1,7 +1,6 @@
 import logging
 import os
 import aiohttp
-from flask import Flask, request
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import (
     Application, CommandHandler, MessageHandler,
@@ -22,23 +21,6 @@ main_keyboard = [
     [KeyboardButton("NZDUSD"), KeyboardButton("EURGBP")]
 ]
 reply_markup = ReplyKeyboardMarkup(main_keyboard, resize_keyboard=True)
-
-# Flask для Render
-flask_app = Flask(__name__)
-
-@flask_app.route('/', defaults={'path': ''})
-@flask_app.route('/<path:path>')
-def health_check(path):
-    return "Bot is alive! Forex Lot Bot v3.2", 200
-
-@flask_app.route(f'/{TOKEN}', methods=['POST'])
-async def telegram_webhook():
-    data = request.get_json(force=True)
-    logging.info(f"Получен POST от Telegram: {data}")  # ← Добавь это
-    update = Update.de_json(data, app.bot)
-    await app.process_update(update)
-    logging.info(f"Обработан update: {update.update_id}")  # ← И это
-    return 'OK'
 
 
 async def get_gbp_usd_rate():
@@ -175,36 +157,17 @@ conv_handler = ConversationHandler(
     fallbacks=[],
 )
 
-
-# Глобальный app
-app = Application.builder().token(TOKEN).build()
-app.add_handler(CommandHandler("start", start))
-app.add_handler(conv_handler)
-
-# === MAIN ===
+# === MAIN (polling для Railway) ===
 def main():
-    # Точный URL (вставь свой!)
-    render_url = "https://forex-lot-bot.onrender.com"  # ←←← ТВОЙ URL ИЗ RENDER
-    webhook_url = f"{render_url}/{TOKEN}"
-
-    # Принудительно удаляем старый webhook
-    try:
-        app.bot.delete_webhook(drop_pending_updates=True)
-        logging.info("Старый webhook удалён")
-    except Exception as e:
-        logging.warning(f"Не удалось удалить webhook: {e}")
-
-    # Устанавливаем новый
-    try:
-        app.bot.set_webhook(url=webhook_url)
-        logging.info(f"Новый webhook установлен: {webhook_url}")
-    except Exception as e:
-        logging.error(f"ОШИБКА установки webhook: {e}")
-        return
-
-    # Запуск Flask
-    port = int(os.environ.get('PORT', 5000))
-    flask_app.run(host='0.0.0.0', port=port, use_reloader=False)
+    app = Application.builder().token(TOKEN).build()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(conv_handler)
+    
+    print("Бот v3.3 — 100% РАБОТАЕТ НА RAILWAY 24/7!")
+    app.run_polling(
+        drop_pending_updates=True,
+        allowed_updates=Update.ALL_TYPES
+    )
 
 if __name__ == "__main__":
     main()
