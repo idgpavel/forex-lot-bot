@@ -180,14 +180,25 @@ app.add_handler(conv_handler)
 
 # === MAIN ===
 def main():
-    # Авто-определение URL от Render
-    render_url = os.environ.get('RENDER_EXTERNAL_URL', 'https://forex-lot-bot.onrender.com')
+    # Точный URL (вставь свой!)
+    render_url = "https://forex-lot-bot.onrender.com"  # ←←← ТВОЙ URL ИЗ RENDER
     webhook_url = f"{render_url}/{TOKEN}"
-    
-    # Установка webhook
-    app.bot.set_webhook(url=webhook_url)
-    logging.info(f"Webhook установлен: {webhook_url}")
-    
+
+    # Принудительно удаляем старый webhook
+    try:
+        app.bot.delete_webhook(drop_pending_updates=True)
+        logging.info("Старый webhook удалён")
+    except Exception as e:
+        logging.warning(f"Не удалось удалить webhook: {e}")
+
+    # Устанавливаем новый
+    try:
+        app.bot.set_webhook(url=webhook_url)
+        logging.info(f"Новый webhook установлен: {webhook_url}")
+    except Exception as e:
+        logging.error(f"ОШИБКА установки webhook: {e}")
+        return
+
     # Запуск Flask
     port = int(os.environ.get('PORT', 5000))
     flask_app.run(host='0.0.0.0', port=port, use_reloader=False)
