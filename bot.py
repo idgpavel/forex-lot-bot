@@ -1,5 +1,8 @@
 import logging
+import os
 import aiohttp
+from flask import Flask
+from threading import Thread
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, ConversationHandler
 
@@ -16,6 +19,18 @@ main_keyboard = [
     [KeyboardButton("NZDUSD"), KeyboardButton("EURGBP")]
 ]
 reply_markup = ReplyKeyboardMarkup(main_keyboard, resize_keyboard=True)
+
+# Flask для health check Render (слушает порт 10000)
+flask_app = Flask(__name__)
+
+@flask_app.route('/', defaults={'path': ''})
+@flask_app.route('/<path:path>')
+def catch_all(path):
+    return "Bot is alive! 🚀", 200
+
+def run_flask():
+    port = int(os.environ.get('PORT', 10000))
+    flask_app.run(host='0.0.0.0', port=port, debug=False)
 
 
 async def get_gbp_usd_rate():
@@ -154,17 +169,21 @@ conv_handler = ConversationHandler(
 
 
 def main():
+    # Запуск Flask в фоне
+    flask_thread = Thread(target=run_flask)
+    flask_thread.daemon = True
+    flask_thread.start()
+    
+    # Telegram polling (без изменений)
     app = Application.builder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(conv_handler)
-    print("Бот threet Risk-Manager v1.0 — 100% РАБОТАЕТ НА RENDER 24/7!")
+    print("Бот v3.1 — 100% РАБОТАЕТ НА RENDER 24/7!")
     
-    # НОВАЯ СТРОКА — ЭТО ВСЁ ИСПРАВИЛО!
     app.run_polling(
         drop_pending_updates=True,
         allowed_updates=Update.ALL_TYPES
     )
-
 
 if __name__ == "__main__":
     main()
