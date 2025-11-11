@@ -1,10 +1,12 @@
 import logging
 import os
 import aiohttp
-from flask import Flask
-from threading import Thread
+from flask import Flask, request
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, ConversationHandler
+from telegram.ext import (
+    Application, CommandHandler, MessageHandler,
+    filters, ContextTypes, ConversationHandler
+)
 
 # ←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←
 TOKEN = "8511981048:AAGzbSxd1BpRLfqxXiibV2DuG3g6p5bsbBk"
@@ -14,23 +16,26 @@ ALPHA_VANTAGE_KEY = "TKY88GBALL8517UQ"  # https://www.alphavantage.co/support/#a
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 user_data = {}
 
+# Клавиатура
 main_keyboard = [
     [KeyboardButton("EURUSD"), KeyboardButton("GBPUSD")],
     [KeyboardButton("NZDUSD"), KeyboardButton("EURGBP")]
 ]
 reply_markup = ReplyKeyboardMarkup(main_keyboard, resize_keyboard=True)
 
-# Flask для health check Render (слушает порт 10000)
+# Flask для Render
 flask_app = Flask(__name__)
 
 @flask_app.route('/', defaults={'path': ''})
 @flask_app.route('/<path:path>')
-def catch_all(path):
-    return "Bot is alive! 🚀", 200
+def health_check(path):
+    return "Bot is alive! Forex Lot Bot v3.2", 200
 
-def run_flask():
-    port = int(os.environ.get('PORT', 10000))
-    flask_app.run(host='0.0.0.0', port=port, debug=False)
+@flask_app.route(f'/{TOKEN}', methods=['POST'])
+async def telegram_webhook():
+    update = Update.de_json(request.get_json(force=True), app.bot)
+    await app.process_update(update)
+    return 'OK'
 
 
 async def get_gbp_usd_rate():
@@ -168,22 +173,24 @@ conv_handler = ConversationHandler(
 )
 
 
+# Глобальный app
+app = Application.builder().token(TOKEN).build()
+app.add_handler(CommandHandler("start", start))
+app.add_handler(conv_handler)
+
+# === MAIN ===
 def main():
-    # Запуск Flask в фоне
-    flask_thread = Thread(target=run_flask)
-    flask_thread.daemon = True
-    flask_thread.start()
+    # Авто-определение URL от Render
+    render_url = os.environ.get('RENDER_EXTERNAL_URL', 'https://forex-lot-bot.onrender.com')
+    webhook_url = f"{render_url}/{TOKEN}"
     
-    # Telegram polling (без изменений)
-    app = Application.builder().token(TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(conv_handler)
-    print("Бот v3.1 — 100% РАБОТАЕТ НА RENDER 24/7!")
+    # Установка webhook
+    app.bot.set_webhook(url=webhook_url)
+    logging.info(f"Webhook установлен: {webhook_url}")
     
-    app.run_polling(
-        drop_pending_updates=True,
-        allowed_updates=Update.ALL_TYPES
-    )
+    # Запуск Flask
+    port = int(os.environ.get('PORT', 5000))
+    flask_app.run(host='0.0.0.0', port=port, use_reloader=False)
 
 if __name__ == "__main__":
     main()
