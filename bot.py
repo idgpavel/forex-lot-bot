@@ -33,8 +33,11 @@ def health_check(path):
 
 @flask_app.route(f'/{TOKEN}', methods=['POST'])
 async def telegram_webhook():
-    update = Update.de_json(request.get_json(force=True), app.bot)
+    data = request.get_json(force=True)
+    logging.info(f"Получен POST от Telegram: {data}")  # ← Добавь это
+    update = Update.de_json(data, app.bot)
     await app.process_update(update)
+    logging.info(f"Обработан update: {update.update_id}")  # ← И это
     return 'OK'
 
 
